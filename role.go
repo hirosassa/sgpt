@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime"
 	"text/template"
 )
@@ -51,34 +53,61 @@ type SystemRole struct {
 }
 
 func NewRole(name string, role string, variables map[string]string) (*SystemRole, error) {
+	roleString, err := execRole(role, variables)
+	if err != nil {
+		return nil, err
+	}
+
+	data := map[string]string{
+		"Name": name,
+		"Role": roleString,
+	}
 
 	var b bytes.Buffer
-	if checkVariables(variables) {
-		tpl := template.Must(template.New("role").Parse(role))
-		if err := tpl.Execute(&b, variables); err != nil {
-			return nil, err
-		}
-		return &SystemRole{name, b.String()}, nil
+	tpl, err := template.New("tpl").Parse(ROLE_TEMPLATE)
+	if err != nil {
+		return nil, err
 	}
-	return &SystemRole{name, role}, nil
+	if err := tpl.Execute(&b, data); err != nil {
+		return nil, err
+	}
+	return &SystemRole{name, b.String()}, nil
+}
+
+func execRole(role string, variables map[string]string) (string, error) {
+	if !checkVariables(variables) {
+		return role, nil
+	}
+
+	var b bytes.Buffer
+	tpl, err := template.New("role").Parse(role)
+	if err != nil {
+		return "", err
+	}
+	if err := tpl.Execute(&b, variables); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 func osName() string {
 	// todo: add distro name if needed
+	slog.Info(runtime.GOOS)
 	return runtime.GOOS
 }
 
 func shellName() string {
 	// todo: support windows shell
-	return os.Getenv("SHELL")
+	slog.Info(filepath.Base(os.Getenv("SHELL")))
+	return filepath.Base(os.Getenv("SHELL"))
 }
 
 func checkVariables(variables map[string]string) bool {
-	_, ok := variables["shell"]
+	_, ok := variables["Shell"]
 	if !ok {
 		return false
 	}
-	_, ok = variables["os"]
+	_, ok = variables["OS"]
 	if !ok {
 		return false
 	}
@@ -87,7 +116,7 @@ func checkVariables(variables map[string]string) bool {
 
 func CheckGet(shell bool, describeShell bool, code bool) (*SystemRole, error) {
 	if shell {
-		variables := map[string]string{"os": osName(), "shell": shellName()}
+		variables := map[string]string{"OS": osName(), "Shell": shellName()}
 		role, err := NewRole(string(SHELL), SHELL_ROLE, variables)
 		if err != nil {
 			return nil, err
@@ -109,7 +138,7 @@ func CheckGet(shell bool, describeShell bool, code bool) (*SystemRole, error) {
 		return role, nil
 	}
 
-	variables := map[string]string{"os": osName(), "shell": shellName()}
+	variables := map[string]string{"OS": osName(), "Shell": shellName()}
 	role, err := NewRole(string(DEFAULT), DEFAULT_ROLE, variables)
 	if err != nil {
 		return nil, err

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 
@@ -10,6 +11,9 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	slog.SetDefault(logger)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
@@ -55,6 +59,7 @@ func run(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	slog.Info("get role", slog.String("name", role.name), slog.String("role", role.role))
 
 	hander, err := NewChatHandler(*role)
 	if err != nil {

@@ -67,8 +67,9 @@ func (h *ChatHandler) MakeMessages(ctx *cli.Context, prompt string) ([]openai.Ch
 }
 
 func (h *ChatHandler) Handle(ctx *cli.Context, prompt string) (string, error) {
-	messages := []openai.ChatCompletionMessageParamUnion{
-		openai.UserMessage(strings.TrimSpace(prompt)),
+	messages, err := h.MakeMessages(ctx, prompt)
+	if err != nil {
+		return "", err
 	}
 	return h.getCompletion(ctx, messages)
 }
