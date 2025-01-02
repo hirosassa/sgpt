@@ -10,41 +10,41 @@ import (
 )
 
 const (
-	SHELL_ROLE = "Provide only {{ .Shell }} commands for {{ .OS }} without any description.\n" +
+	ShellRole = "Provide only {{ .Shell }} commands for {{ .OS }} without any description.\n" +
 		"If there is a lack of details, provide most logical solution.\n" +
 		"Ensure the output is a valid shell command.\n" +
 		"If multiple steps required try to combine them together using &&.\n" +
 		"Provide only plain text without Markdown formatting.\n" +
 		"Do not provide markdown formatting such as ```."
 
-	DESCRIBE_SHELL_ROLE = `Provide a terse, single sentence description of the given shell command.
+	DescribeShellRole = `Provide a terse, single sentence description of the given shell command.
 Describe each argument and option of the command.
 Provide short responses in about 80 words.
 APPLY MARKDOWN formatting when possible.`
 
-	CODE_ROLE = "Provide only code as output without any description.\n" +
+	CodeRole = "Provide only code as output without any description.\n" +
 		"Provide only code in plain text format without Markdown formatting.\n" +
 		"Do not include symbols such as ``` or ```python.\n" +
 		"If there is a lack of details, provide most logical solution.\n" +
 		"You are not allowed to ask for more details.\n" +
 		"For example if the prompt is \"Hello world Python\", you should return \"print('Hello world')\"."
 
-	DEFAULT_ROLE = `You are programming and system administration assistant.
+	DefaultRole = `You are programming and system administration assistant.
 You are managing {{ .OS }} operating system with {{ .Shell }} shell.
 Provide short responses in about 100 words, unless you are specifically asked for more details.
 If you need to store any data, assume it will be stored in the conversation.
 APPLY MARKDOWN formatting when possible.`
 )
 
-const ROLE_TEMPLATE = "You are {{ .Name }}\n{{ .Role }}"
+const RoleTemplate = "You are {{ .Name }}\n{{ .Role }}"
 
-type DefaultRole string
+type DefaultRoleName string
 
 const (
-	DEFAULT        DefaultRole = "ShellGPT"
-	SHELL          DefaultRole = "Shell Command Generator"
-	DESCRIBE_SHELL DefaultRole = "Shell Command Descriptor"
-	CODE           DefaultRole = "Code Generator"
+	Default       DefaultRoleName = "ShellGPT"
+	Shell         DefaultRoleName = "Shell Command Generator"
+	DescribeShell DefaultRoleName = "Shell Command Descriptor"
+	Code          DefaultRoleName = "Code Generator"
 )
 
 type SystemRole struct {
@@ -64,7 +64,7 @@ func NewRole(name string, role string, variables map[string]string) (*SystemRole
 	}
 
 	var b bytes.Buffer
-	tpl, err := template.New("tpl").Parse(ROLE_TEMPLATE)
+	tpl, err := template.New("tpl").Parse(RoleTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -92,13 +92,13 @@ func execRole(role string, variables map[string]string) (string, error) {
 
 func osName() string {
 	// todo: add distro name if needed
-	slog.Info(runtime.GOOS)
+	slog.Debug(runtime.GOOS)
 	return runtime.GOOS
 }
 
 func shellName() string {
 	// todo: support windows shell
-	slog.Info(filepath.Base(os.Getenv("SHELL")))
+	slog.Debug(filepath.Base(os.Getenv("SHELL")))
 	return filepath.Base(os.Getenv("SHELL"))
 }
 
@@ -108,30 +108,27 @@ func checkVariables(variables map[string]string) bool {
 		return false
 	}
 	_, ok = variables["OS"]
-	if !ok {
-		return false
-	}
-	return true
+	return ok
 }
 
 func CheckGet(shell bool, describeShell bool, code bool) (*SystemRole, error) {
 	if shell {
 		variables := map[string]string{"OS": osName(), "Shell": shellName()}
-		role, err := NewRole(string(SHELL), SHELL_ROLE, variables)
+		role, err := NewRole(string(Shell), ShellRole, variables)
 		if err != nil {
 			return nil, err
 		}
 		return role, nil
 	}
 	if describeShell {
-		role, err := NewRole(string(DESCRIBE_SHELL), DESCRIBE_SHELL_ROLE, map[string]string{})
+		role, err := NewRole(string(DescribeShell), DescribeShellRole, map[string]string{})
 		if err != nil {
 			return nil, err
 		}
 		return role, nil
 	}
 	if code {
-		role, err := NewRole(string(CODE), CODE_ROLE, map[string]string{})
+		role, err := NewRole(string(Code), CodeRole, map[string]string{})
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +136,7 @@ func CheckGet(shell bool, describeShell bool, code bool) (*SystemRole, error) {
 	}
 
 	variables := map[string]string{"OS": osName(), "Shell": shellName()}
-	role, err := NewRole(string(DEFAULT), DEFAULT_ROLE, variables)
+	role, err := NewRole(string(Default), DefaultRole, variables)
 	if err != nil {
 		return nil, err
 	}

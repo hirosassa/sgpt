@@ -10,18 +10,28 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+	ExitCodeOK    int = 0
+	ExitCodeError int = iota
+)
+
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	slog.SetDefault(logger)
 
+	os.Exit(core())
+}
+
+func core() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
 	app := NewApp()
 	if err := app.RunContext(ctx, os.Args); err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return ExitCodeError
 	}
+	return ExitCodeOK
 }
 
 func NewApp() *cli.App {
@@ -59,9 +69,24 @@ func run(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	slog.Info("get role", slog.String("name", role.name), slog.String("role", role.role))
+	slog.Debug("get role", slog.String("name", role.name), slog.String("role", role.role))
 
-	hander, err := NewChatHandler(*role)
+	chatID := ctx.String("chat")
+	if chatID != "" {
+		handler, err := NewChatHandler(chatID, *role)
+		if err != nil {
+			return fmt.Errorf("failed to create chat handler: %w", err)
+		}
+		res, err := handler.Handle(ctx, ctx.Args().First())
+		if err != nil {
+			return fmt.Errorf("failed to communicate OpenAI API: %w", err)
+		}
+
+		fmt.Println(res)
+		return nil
+	}
+
+	hander, err := NewDefaultHandler(*role)
 	if err != nil {
 		return fmt.Errorf("failed to create chat handler: %w", err)
 	}
