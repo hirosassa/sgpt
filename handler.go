@@ -11,7 +11,7 @@ import (
 
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const cacheUmask = 0o700
@@ -33,11 +33,11 @@ func NewChatSession(storagePath string) (*ChatSession, error) {
 	}, nil
 }
 
-func (c *ChatSession) Wrap(fn func(ctx *cli.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error)) func(ctx *cli.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
-	return func(ctx *cli.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
-		chatID := ctx.String("chat")
+func (c *ChatSession) Wrap(fn func(ctx context.Context, cmd *cli.Command, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error)) func(ctx context.Context, cmd *cli.Command, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
+	return func(ctx context.Context, cmd *cli.Command, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
+		chatID := cmd.String("chat")
 		if chatID == "" {
-			return fn(ctx, params)
+			return fn(ctx, cmd, params)
 		}
 
 		previousParams, err := c.read(chatID)
@@ -46,7 +46,7 @@ func (c *ChatSession) Wrap(fn func(ctx *cli.Context, params openai.ChatCompletio
 		}
 
 		params.Messages.Value = append(previousParams.Messages.Value, params.Messages.Value...)
-		message, err := fn(ctx, params)
+		message, err := fn(ctx, cmd, params)
 		if err != nil {
 			return openai.ChatCompletionMessage{}, err
 		}
@@ -215,7 +215,7 @@ func createDirectory(storagePath string) error {
 }
 
 type Handler interface {
-	Handle(ctx context.Context, prompt string) (string, error)
+	Handle(ctx context.Context, cmd *cli.Command, prompt string) (string, error)
 	MakeMessages(prompt string) ([]openai.ChatCompletionMessageParamUnion, error)
 }
 
@@ -269,8 +269,8 @@ func (h *ChatHandler) initiated() bool {
 	return h.chatSession.exists(h.chatID)
 }
 
-func (h *ChatHandler) getCompletion(ctx *cli.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
-	chatCompletion, err := h.client.Chat.Completions.New(ctx.Context, params)
+func (h *ChatHandler) getCompletion(ctx context.Context, cmd *cli.Command, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
+	chatCompletion, err := h.client.Chat.Completions.New(ctx, params)
 	if err != nil {
 		log.Println(err)
 		return openai.ChatCompletionMessage{}, err
@@ -297,11 +297,11 @@ func (h *ChatHandler) MakeParams(prompt string) openai.ChatCompletionNewParams {
 	}
 }
 
-func (h *ChatHandler) Handle(ctx *cli.Context, prompt string) (string, error) {
+func (h *ChatHandler) Handle(ctx context.Context, cmd *cli.Command, prompt string) (string, error) {
 	params := h.MakeParams(prompt)
 
 	wrappedGetCompletion := h.chatSession.Wrap(h.getCompletion)
-	message, err := wrappedGetCompletion(ctx, params)
+	message, err := wrappedGetCompletion(ctx, cmd, params)
 	if err != nil {
 		return "", err
 	}
@@ -324,8 +324,8 @@ func NewDefaultHandler(role SystemRole) (*DefaultHandler, error) {
 	}, nil
 }
 
-func (h *DefaultHandler) getCompletion(ctx *cli.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
-	chatCompletion, err := h.client.Chat.Completions.New(ctx.Context, params)
+func (h *DefaultHandler) getCompletion(ctx context.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
+	chatCompletion, err := h.client.Chat.Completions.New(ctx, params)
 	if err != nil {
 		log.Println(err)
 		return openai.ChatCompletionMessage{}, err
@@ -345,7 +345,7 @@ func (h *DefaultHandler) MakeParams(prompt string) openai.ChatCompletionNewParam
 	}
 }
 
-func (h *DefaultHandler) Handle(ctx *cli.Context, prompt string) (string, error) {
+func (h *DefaultHandler) Handle(ctx context.Context, cmd *cli.Command, prompt string) (string, error) {
 	params := h.MakeParams(prompt)
 	message, err := h.getCompletion(ctx, params)
 	if err != nil {

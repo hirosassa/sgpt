@@ -26,6 +26,8 @@ linters:
     - dupword
     - musttag
     - forbidigo
+    - revive # tentative
+    - unparam # tentative
 
 linters-settings:
   cyclop:
