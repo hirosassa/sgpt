@@ -34,6 +34,7 @@ brews:
     repository:
       owner: hirosassa
       name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_PAT }}"
     directory: Formula
     homepage: https://github.com/hirosassa/sgpt
     install: bin.install "sgpt"

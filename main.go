@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 )
@@ -74,6 +76,8 @@ func NewCmd() *cli.Command {
 			},
 		},
 		Action: run,
+		// todo: try enabling this feature for stdin input.
+		// ReadArgsFromStdin: true,
 	}
 	return cmd
 }
@@ -84,6 +88,15 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	slog.Debug("get role", slog.String("name", role.name), slog.String("role", role.role))
+
+	// if we have stdin
+	stdin, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return fmt.Errorf("failed to read from stdin: %w", err)
+	}
+
+	prompt := cmd.Args().First() + "\n" + strings.TrimSpace(string(stdin))
+	slog.Debug("get prompt", slog.String("prompt", prompt))
 
 	chatID := cmd.String("chat")
 	if chatID != "" {
@@ -104,7 +117,8 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("failed to create chat handler: %w", err)
 	}
-	res, err := hander.Handle(ctx, cmd, cmd.Args().First())
+
+	res, err := hander.Handle(ctx, cmd, prompt)
 	if err != nil {
 		return fmt.Errorf("failed to communicate OpenAI API: %w", err)
 	}

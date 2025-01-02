@@ -7,6 +7,7 @@ import (
 )
 
 func TestCheckGet(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
 		shell         bool
 		describeShell bool
