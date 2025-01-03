@@ -1,4 +1,4 @@
-package main
+package sgpt
 
 import (
 	"bytes"
@@ -48,8 +48,8 @@ const (
 )
 
 type SystemRole struct {
-	name string
-	role string
+	Name string
+	Role string
 }
 
 func NewRole(name string, role string, variables map[string]string) (*SystemRole, error) {
@@ -140,5 +140,6 @@ func CheckGet(shell bool, describeShell bool, code bool) (*SystemRole, error) {
 	if err != nil {
 		return nil, err
 	}
+	slog.Debug("get role", slog.String("name", role.Name), slog.String("role", role.Role))
 	return role, nil
 }
