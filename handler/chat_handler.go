@@ -1,16 +1,15 @@
-package main
+package handler
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"log/slog"
 	"os"
 	"strings"
 
+	"github.com/hirosassa/sgpt"
 	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 	"github.com/urfave/cli/v3"
 )
 
@@ -214,21 +213,21 @@ func createDirectory(storagePath string) error {
 	return nil
 }
 
-type Handler interface {
-	Handle(ctx context.Context, cmd *cli.Command, prompt string) (string, error)
-	MakeMessages(prompt string) ([]openai.ChatCompletionMessageParamUnion, error)
-}
-
 type ChatHandler struct {
 	client      *openai.Client
-	role        SystemRole
+	role        sgpt.SystemRole
 	chatID      string
 	chatSession *ChatSession
 }
 
-func NewChatHandler(chatID string, role SystemRole) (*ChatHandler, error) {
+func NewChatHandler(cmd *cli.Command, chatID string) (*ChatHandler, error) {
 	chatCachePath := os.ExpandEnv("$HOME/.config/shell_gpt/chat_cache")
 	chatSession, err := NewChatSession(chatCachePath) // todo: make this configurable
+	if err != nil {
+		return nil, err
+	}
+
+	role, err := sgpt.CheckGet(cmd.Bool("shell"), cmd.Bool("describe-shell"), cmd.Bool("code"))
 	if err != nil {
 		return nil, err
 	}
@@ -246,23 +245,10 @@ func NewChatHandler(chatID string, role SystemRole) (*ChatHandler, error) {
 
 	return &ChatHandler{
 		client:      client,
-		role:        role,
+		role:        *role,
 		chatID:      chatID,
 		chatSession: chatSession,
 	}, nil
-}
-
-func getClient() (*openai.Client, error) {
-	apiKey := os.Getenv("SGPT_OPENAI_API_KEY")
-	if apiKey == "" {
-		return nil, errors.New("please set api key to SPGT_OPENAI_API_KEY")
-	}
-
-	client := openai.NewClient(
-		option.WithAPIKey(apiKey),
-	)
-
-	return client, nil
 }
 
 func (h *ChatHandler) initiated() bool {
@@ -278,10 +264,10 @@ func (h *ChatHandler) getCompletion(ctx context.Context, cmd *cli.Command, param
 	return chatCompletion.Choices[0].Message, nil
 }
 
-func (h *ChatHandler) MakeParams(prompt string) openai.ChatCompletionNewParams {
+func (h *ChatHandler) makeParams(prompt string) openai.ChatCompletionNewParams {
 	if h.initiated() {
 		messages := []openai.ChatCompletionMessageParamUnion{
-			openai.SystemMessage(h.role.role),
+			openai.SystemMessage(h.role.Role),
 			openai.UserMessage(strings.TrimSpace(prompt)),
 		}
 		return openai.ChatCompletionNewParams{
@@ -298,56 +284,10 @@ func (h *ChatHandler) MakeParams(prompt string) openai.ChatCompletionNewParams {
 }
 
 func (h *ChatHandler) Handle(ctx context.Context, cmd *cli.Command, prompt string) (string, error) {
-	params := h.MakeParams(prompt)
+	params := h.makeParams(prompt)
 
 	wrappedGetCompletion := h.chatSession.Wrap(h.getCompletion)
 	message, err := wrappedGetCompletion(ctx, cmd, params)
-	if err != nil {
-		return "", err
-	}
-	return message.Content, nil
-}
-
-type DefaultHandler struct {
-	client *openai.Client
-	role   SystemRole
-}
-
-func NewDefaultHandler(role SystemRole) (*DefaultHandler, error) {
-	client, err := getClient()
-	if err != nil {
-		return nil, err
-	}
-	return &DefaultHandler{
-		client: client,
-		role:   role,
-	}, nil
-}
-
-func (h *DefaultHandler) getCompletion(ctx context.Context, params openai.ChatCompletionNewParams) (openai.ChatCompletionMessage, error) {
-	chatCompletion, err := h.client.Chat.Completions.New(ctx, params)
-	if err != nil {
-		log.Println(err)
-		return openai.ChatCompletionMessage{}, err
-	}
-	return chatCompletion.Choices[0].Message, nil
-}
-
-func (h *DefaultHandler) MakeParams(prompt string) openai.ChatCompletionNewParams {
-	messages := []openai.ChatCompletionMessageParamUnion{
-		openai.SystemMessage(h.role.role),
-		openai.UserMessage(strings.TrimSpace(prompt)),
-	}
-
-	return openai.ChatCompletionNewParams{
-		Messages: openai.F(messages),
-		Model:    openai.F(openai.ChatModelGPT4o), // todo: make this configurable
-	}
-}
-
-func (h *DefaultHandler) Handle(ctx context.Context, cmd *cli.Command, prompt string) (string, error) {
-	params := h.MakeParams(prompt)
-	message, err := h.getCompletion(ctx, params)
 	if err != nil {
 		return "", err
 	}

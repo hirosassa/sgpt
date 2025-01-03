@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 
+	"github.com/hirosassa/sgpt/handler"
 	"github.com/urfave/cli/v3"
 )
 
@@ -83,42 +84,38 @@ func NewCmd() *cli.Command {
 }
 
 func run(ctx context.Context, cmd *cli.Command) error {
-	role, err := CheckGet(cmd.Bool("shell"), cmd.Bool("describe-shell"), cmd.Bool("code"))
+	stat, err := os.Stdin.Stat()
 	if err != nil {
-		return err
-	}
-	slog.Debug("get role", slog.String("name", role.name), slog.String("role", role.role))
-
-	// if we have stdin
-	stdin, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return fmt.Errorf("failed to read from stdin: %w", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
+	var stdin []byte
+	if stat.Size() > 0 { // if stdin is not empty
+		stdin, err = io.ReadAll(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read from stdin: %w", err)
+		}
+	}
 	prompt := cmd.Args().First() + "\n" + strings.TrimSpace(string(stdin))
 	slog.Debug("get prompt", slog.String("prompt", prompt))
 
+	var h handler.Handler
 	chatID := cmd.String("chat")
-	if chatID != "" {
-		handler, err := NewChatHandler(chatID, *role)
+	switch chatID {
+	case "":
+		h, err = handler.NewDefaultHandler(cmd)
 		if err != nil {
 			return fmt.Errorf("failed to create chat handler: %w", err)
 		}
-		res, err := handler.Handle(ctx, cmd, cmd.Args().First())
+	default:
+		h, err = handler.NewChatHandler(cmd, chatID)
 		if err != nil {
-			return fmt.Errorf("failed to communicate OpenAI API: %w", err)
+			return fmt.Errorf("failed to create chat handler: %w", err)
 		}
-
-		fmt.Println(res)
-		return nil
 	}
 
-	hander, err := NewDefaultHandler(*role)
-	if err != nil {
-		return fmt.Errorf("failed to create chat handler: %w", err)
-	}
-
-	res, err := hander.Handle(ctx, cmd, prompt)
+	res, err := h.Handle(ctx, cmd, prompt)
 	if err != nil {
 		return fmt.Errorf("failed to communicate OpenAI API: %w", err)
 	}
