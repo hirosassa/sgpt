@@ -17,7 +17,7 @@ type Handler interface {
 func getClient() (*openai.Client, error) {
 	apiKey := os.Getenv("SGPT_OPENAI_API_KEY")
 	if apiKey == "" {
-		return nil, errors.New("please set api key to SPGT_OPENAI_API_KEY")
+		return nil, errors.New("please set api key to SGPT_OPENAI_API_KEY")
 	}
 
 	client := openai.NewClient(
