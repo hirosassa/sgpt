@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hirosassa/sgpt"
+	sgptrole "github.com/hirosassa/sgpt/role"
 	"github.com/openai/openai-go"
 	"github.com/urfave/cli/v3"
 )
@@ -215,7 +215,7 @@ func createDirectory(storagePath string) error {
 
 type ChatHandler struct {
 	client      *openai.Client
-	role        sgpt.SystemRole
+	role        sgptrole.SystemRole
 	chatID      string
 	chatSession *ChatSession
 }
@@ -227,7 +227,7 @@ func NewChatHandler(cmd *cli.Command, chatID string) (*ChatHandler, error) {
 		return nil, err
 	}
 
-	role, err := sgpt.CheckGet(cmd.Bool("shell"), cmd.Bool("describe-shell"), cmd.Bool("code"))
+	role, err := sgptrole.CheckGet(cmd.Bool("shell"), cmd.Bool("describe-shell"), cmd.Bool("code"))
 	if err != nil {
 		return nil, err
 	}

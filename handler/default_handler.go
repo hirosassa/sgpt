@@ -5,18 +5,18 @@ import (
 	"log"
 	"strings"
 
-	"github.com/hirosassa/sgpt"
+	sgptrole "github.com/hirosassa/sgpt/role"
 	"github.com/openai/openai-go"
 	"github.com/urfave/cli/v3"
 )
 
 type DefaultHandler struct {
 	client *openai.Client
-	role   sgpt.SystemRole
+	role   sgptrole.SystemRole
 }
 
 func NewDefaultHandler(cmd *cli.Command) (*DefaultHandler, error) {
-	role, err := sgpt.CheckGet(cmd.Bool("shell"), cmd.Bool("describe-shell"), cmd.Bool("code"))
+	role, err := sgptrole.CheckGet(cmd.Bool("shell"), cmd.Bool("describe-shell"), cmd.Bool("code"))
 	if err != nil {
 		return nil, err
 	}
