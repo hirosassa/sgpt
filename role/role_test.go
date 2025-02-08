@@ -1,4 +1,4 @@
-package sgpt
+package role
 
 import (
 	"testing"

@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -18,18 +18,11 @@ const (
 	ExitCodeError int = iota
 )
 
-func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
-	slog.SetDefault(logger)
-
-	os.Exit(core())
-}
-
-func core() int {
+func Core() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	cmd := NewCmd()
+	cmd := newCmd()
 	if err := cmd.Run(ctx, os.Args); err != nil {
 		fmt.Println(err)
 		return ExitCodeError
@@ -37,7 +30,7 @@ func core() int {
 	return ExitCodeOK
 }
 
-func NewCmd() *cli.Command {
+func newCmd() *cli.Command {
 	cmd := &cli.Command{
 		Name:  "sgpt",
 		Usage: "A command-line productivity tool powered by AI large language models (LLMs)",
