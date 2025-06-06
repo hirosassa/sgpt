@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/urfave/cli/v3"
+	"google.golang.org/api/option"
 )
 
 var _ Handler = (*GeminiChatHandler)(nil)
@@ -16,11 +17,15 @@ type GeminiChatHandler struct {
 	model  string
 }
 
-func NewGeminiChatHandler(client *genai.Client, model string) *GeminiChatHandler {
+func NewGeminiChatHandler(ctx context.Context, apiKey string, model string) (*GeminiChatHandler, error) {
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return nil, err
+	}
 	return &GeminiChatHandler{
 		client: client,
 		model:  model,
-	}
+	}, nil
 }
 
 // Handle
