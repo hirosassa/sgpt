@@ -68,6 +68,16 @@ func newCmd() *cli.Command {
 				Name:  "chat",
 				Usage: "Follow conversation with id, \" 'use \"temp\" for quick session.",
 			},
+			&cli.StringFlag{
+				Name:  "platform",
+				Usage: "One of: openai, gemini",
+				Value: "openai",
+			},
+			&cli.StringFlag{
+				Name:  "model",
+				Usage: "Model name to use, e.g. gemini-2.0-flash; only used when --platform is set to gemini.",
+				Value: "gemini-2.0-flash",
+			},
 		},
 		Action: run,
 		// todo: try enabling this feature for stdin input.
@@ -94,17 +104,27 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	slog.Debug("get prompt", slog.String("prompt", prompt))
 
 	var h handler.Handler
-	chatID := cmd.String("chat")
-	switch chatID {
-	case "":
-		h, err = handler.NewDefaultHandler(cmd)
+	platform := cmd.String("platform")
+	switch platform {
+	case "gemini":
+		model := cmd.String("model")
+		h, err = handler.NewGeminiChatHandler(ctx, os.Getenv("SGPT_GEMINI_API_KEY"), model)
 		if err != nil {
 			return fmt.Errorf("failed to create chat handler: %w", err)
 		}
 	default:
-		h, err = handler.NewChatHandler(cmd, chatID)
-		if err != nil {
-			return fmt.Errorf("failed to create chat handler: %w", err)
+		chatID := cmd.String("chat")
+		switch chatID {
+		case "":
+			h, err = handler.NewDefaultHandler(cmd)
+			if err != nil {
+				return fmt.Errorf("failed to create chat handler: %w", err)
+			}
+		default:
+			h, err = handler.NewChatHandler(cmd, chatID)
+			if err != nil {
+				return fmt.Errorf("failed to create chat handler: %w", err)
+			}
 		}
 	}
 
