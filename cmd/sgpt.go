@@ -104,8 +104,8 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	slog.Debug("get prompt", slog.String("prompt", prompt))
 
 	var h handler.Handler
-	library := cmd.String("library")
-	switch library {
+	platform := cmd.String("platform")
+	switch platform {
 	case "gemini":
 		model := cmd.String("model")
 		h, err = handler.NewGeminiChatHandler(ctx, os.Getenv("SGPT_GEMINI_API_KEY"), model)
