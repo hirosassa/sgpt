@@ -69,13 +69,13 @@ func newCmd() *cli.Command {
 				Usage: "Follow conversation with id, \" 'use \"temp\" for quick session.",
 			},
 			&cli.StringFlag{
-				Name:  "library",
-				Usage: "one of: openai, gemini",
+				Name:  "platform",
+				Usage: "One of: openai, gemini",
 				Value: "openai",
 			},
 			&cli.StringFlag{
 				Name:  "model",
-				Usage: "Model name to use, e.g. gemini-2.0-flash; only used when --library is set to gemini.",
+				Usage: "Model name to use, e.g. gemini-2.0-flash; only used when --platform is set to gemini.",
 				Value: "gemini-2.0-flash",
 			},
 		},
